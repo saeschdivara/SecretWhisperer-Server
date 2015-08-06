@@ -16,7 +16,9 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp \
-    chat/chatcontroller.cpp
+    chat/chatcontroller.cpp \
+    chat/chatdevicecontroller.cpp
 
 HEADERS += \
-    chat/chatcontroller.h
+    chat/chatcontroller.h \
+    chat/chatdevicecontroller.h

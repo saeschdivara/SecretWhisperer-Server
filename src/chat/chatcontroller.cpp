@@ -12,15 +12,63 @@ ChatController::ChatController(QObject *parent) : QTcpServer(parent)
 
 }
 
+void ChatController::connectingUsers(const QByteArray &user1, const QByteArray &user2)
+{
+    // Check if both user are already registered
+    if ( deviceList.contains(user1) && deviceList.contains(user2) ) {
+        //
+    }
+}
+
+void ChatController::sendMessageToUserFromUser(const QByteArray &sender,
+                                               const QByteArray &receiver,
+                                               const QByteArray &message)
+{
+    // Check if both user are already registered
+    if ( deviceList.contains(user1) && deviceList.contains(user2) ) {
+        QTcpSocket * receiverSocket = deviceList.value(receiver);
+        receiverSocket->write(message);
+    }
+}
+
 void ChatController::ready()
 {
+    const QByteArray userLiteral("USER:");
+    const QByteArray endLiteral("\r\n\r\n");
+
     qDebug() << "On connection ready";
     QTcpSocket * socket = pendingSockets.dequeue();
-    qDebug() << "Socket: " << socket;
 
-    qDebug() << socket->readAll();
+    QByteArray data = socket->readAll();
 
-    //socket->close();
+    disconnect(socket, SIGNAL(readyRead()), this, SLOT(ready()));
+
+    if ( data.indexOf(userLiteral) != 0 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO USER\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
+    data = data.remove(0, userLiteral.length());
+
+    int endIndex = data.indexOf(endLiteral);
+    if ( endIndex == -1 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO END\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
+    // Get user name
+    data = data.remove(endIndex, endLiteral.length());
+
+    if ( data.length() == 0 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO USER\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
+    ChatDeviceController * deviceController = new ChatDeviceController(socket, this, data);
+    deviceList.insert(data, deviceController);
 }
 
 void ChatController::onError(QAbstractSocket::SocketError error)
@@ -77,4 +125,3 @@ void ChatController::incomingConnection(qintptr socketDescriptor)
         delete serverSocket;
     }
 }
-
