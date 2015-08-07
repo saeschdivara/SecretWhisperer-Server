@@ -19,6 +19,8 @@ void ChatDeviceController::onNewData()
 {
     QByteArray data = socket->readAll();
 
+    qDebug() << "Received user data";
+
     if ( data.indexOf("CONNECT:") == 0 ) {
         QByteArray connectStatement = stripRequest(data, "CONNECT:");
 
@@ -51,10 +53,9 @@ void ChatDeviceController::onNewData()
         }
 
         QByteArray username = sendStatement.left(seperatorIndex);
-        QByteArray message = sendStatement.right(seperatorIndex + seperator.length());
+        QByteArray message = sendStatement.mid(seperatorIndex + seperator.length());
 
         chatController->sendMessageToUserFromUser(myUsername, username, message);
-
     }
     else {
         socket->write(QByteArrayLiteral("ERROR:UNKNOWN ACTION\r\n\r\n"));
@@ -74,16 +75,16 @@ QByteArray ChatDeviceController::stripRequest(QByteArray data, QByteArray comman
     if ( data.indexOf(command) != 0 ) {
         socket->write(QByteArrayLiteral("ERROR:UNKNOWN COMMAND\r\n\r\n"));
         socket->close();
-        return;
+        return QByteArrayLiteral("");
     }
 
-    data = data.remove(0, userLiteral.length());
+    data = data.remove(0, command.length());
 
     int endIndex = data.indexOf(endLiteral);
     if ( endIndex == -1 ) {
         socket->write(QByteArrayLiteral("ERROR:NO END\r\n\r\n"));
         socket->close();
-        return;
+        return QByteArrayLiteral("");
     }
 
     // Get user name

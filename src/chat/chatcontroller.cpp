@@ -25,9 +25,18 @@ void ChatController::sendMessageToUserFromUser(const QByteArray &sender,
                                                const QByteArray &message)
 {
     // Check if both user are already registered
-    if ( deviceList.contains(user1) && deviceList.contains(user2) ) {
-        QTcpSocket * receiverSocket = deviceList.value(receiver);
-        receiverSocket->write(message);
+    if ( deviceList.contains(sender) && deviceList.contains(receiver) ) {
+
+        qDebug() << "send message to user";
+
+        QTcpSocket * receiverSocket = deviceList.value(receiver)->getSocket();
+        receiverSocket->write(
+                        QByteArrayLiteral("MESSAGE:") +
+                        sender +
+                        QByteArrayLiteral("\r\n") +
+                        message +
+                        QByteArrayLiteral("\r\n\r\n")
+                    );
     }
 }
 
@@ -41,7 +50,7 @@ void ChatController::ready()
 
     QByteArray data = socket->readAll();
 
-    disconnect(socket, SIGNAL(readyRead()), this, SLOT(ready()));
+    qDebug() << "Disconnect: " << disconnect(socket, SIGNAL(readyRead()), this, SLOT(ready()));
 
     if ( data.indexOf(userLiteral) != 0 ) {
         socket->write(QByteArrayLiteral("ERROR:NO USER\r\n\r\n"));
@@ -68,6 +77,7 @@ void ChatController::ready()
     }
 
     ChatDeviceController * deviceController = new ChatDeviceController(socket, this, data);
+    deviceController->listen();
     deviceList.insert(data, deviceController);
 }
 

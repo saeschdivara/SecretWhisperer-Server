@@ -12,8 +12,16 @@ class ChatDeviceController : public QObject
 {
     Q_OBJECT
 public:
-    explicit ChatDeviceController(QTcpSocket * socket, ChatController * controller, QObject *parent = 0);
+    explicit ChatDeviceController(
+            QTcpSocket * socket,
+            ChatController * controller,
+            QByteArray username,
+            QObject *parent = 0);
     void listen();
+
+    QTcpSocket * getSocket() {
+        return socket;
+    }
 
 signals:
 
