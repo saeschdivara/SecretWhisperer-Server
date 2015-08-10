@@ -12,11 +12,19 @@ ChatController::ChatController(QObject *parent) : QTcpServer(parent)
 
 }
 
-void ChatController::connectingUsers(const QByteArray &user1, const QByteArray &user2)
+void ChatController::connectingUsers(const QByteArray &sender, const QByteArray &receiver, const QByteArray &publicKey)
 {
     // Check if both user are already registered
-    if ( deviceList.contains(user1) && deviceList.contains(user2) ) {
-        //
+    if ( deviceList.contains(sender) && deviceList.contains(receiver) ) {
+        QTcpSocket * receiverSocket = deviceList.value(receiver)->getSocket();
+
+        receiverSocket->write(
+                        QByteArrayLiteral("STARTUP:") +
+                        sender +
+                        QByteArrayLiteral("\r\n") +
+                        publicKey +
+                        QByteArrayLiteral("\r\n\r\n")
+                    );
     }
 }
 
@@ -35,6 +43,26 @@ void ChatController::sendMessageToUserFromUser(const QByteArray &sender,
                         sender +
                         QByteArrayLiteral("\r\n") +
                         message +
+                        QByteArrayLiteral("\r\n\r\n")
+                    );
+    }
+}
+
+void ChatController::sendEncryptionKey(const QByteArray &sender,
+                                       const QByteArray &receiver,
+                                       const QByteArray &encryptedKey)
+{
+    // Check if both user are already registered
+    if ( deviceList.contains(sender) && deviceList.contains(receiver) ) {
+
+        qDebug() << "send encryption key to user";
+
+        QTcpSocket * receiverSocket = deviceList.value(receiver)->getSocket();
+        receiverSocket->write(
+                        QByteArrayLiteral("ENCRYPT:") +
+                        sender +
+                        QByteArrayLiteral("\r\n") +
+                        encryptedKey +
                         QByteArrayLiteral("\r\n\r\n")
                     );
     }

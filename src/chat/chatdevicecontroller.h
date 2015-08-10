@@ -31,7 +31,7 @@ public slots:
 protected:
 
     // Actions
-    void onConnect(QByteArray username);
+    void onConnect(const QByteArray &username, const QByteArray &publicKey);
 
     // Helper
     QByteArray stripRequest(QByteArray data, QByteArray command);

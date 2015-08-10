@@ -14,10 +14,17 @@ class ChatController : public QTcpServer
 public:
     explicit ChatController(QObject *parent = 0);
 
-    void connectingUsers(const QByteArray & user1, const QByteArray & user2);
+    void connectingUsers(const QByteArray & sender,
+                         const QByteArray & receiver,
+                         const QByteArray &publicKey);
+
     void sendMessageToUserFromUser(const QByteArray & sender,
                                    const QByteArray & receiver,
                                    const QByteArray & message);
+
+    void sendEncryptionKey(const QByteArray & sender,
+                                   const QByteArray & receiver,
+                                   const QByteArray & encryptedKey);
 
 signals:
 
