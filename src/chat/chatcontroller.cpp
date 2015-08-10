@@ -104,9 +104,16 @@ void ChatController::ready()
         return;
     }
 
-    ChatDeviceController * deviceController = new ChatDeviceController(socket, this, data);
-    deviceController->listen();
-    deviceList.insert(data, deviceController);
+    if ( !deviceList.contains(data) ) {
+        ChatDeviceController * deviceController = new ChatDeviceController(socket, this, data);
+        deviceController->listen();
+        deviceList.insert(data, deviceController);
+    }
+    else {
+        socket->write(QByteArrayLiteral("ERROR:WRONG USER\r\n\r\n"));
+        socket->close();
+        return;
+    }
 }
 
 void ChatController::onError(QAbstractSocket::SocketError error)
