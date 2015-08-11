@@ -13,6 +13,7 @@ ChatDeviceController::ChatDeviceController(QTcpSocket *socket, ChatController *c
 void ChatDeviceController::listen()
 {
     connect( socket, &QTcpSocket::readyRead, this, &ChatDeviceController::onNewData );
+    connect( socket, &QTcpSocket::disconnected, this, &ChatDeviceController::onClose );
 }
 
 void ChatDeviceController::onNewData()
@@ -101,6 +102,12 @@ void ChatDeviceController::onNewData()
         socket->write(QByteArrayLiteral("ERROR:UNKNOWN ACTION\r\n\r\n"));
         return;
     }
+}
+
+void ChatDeviceController::onClose()
+{
+    qDebug() << "Closing on user: " << myUsername;
+    chatController->closeUser(myUsername);
 }
 
 void ChatDeviceController::onConnect(const QByteArray & username, const QByteArray & publicKey)

@@ -26,6 +26,8 @@ public:
                                    const QByteArray & receiver,
                                    const QByteArray & encryptedKey);
 
+    void closeUser(const QByteArray & username);
+
 signals:
 
 public slots:

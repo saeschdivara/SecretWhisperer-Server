@@ -68,6 +68,12 @@ void ChatController::sendEncryptionKey(const QByteArray &sender,
     }
 }
 
+void ChatController::closeUser(const QByteArray &username)
+{
+    deviceList.value(username)->deleteLater();
+    deviceList.remove(username);
+}
+
 void ChatController::ready()
 {
     const QByteArray userLiteral("USER:");

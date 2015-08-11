@@ -27,6 +27,7 @@ signals:
 
 public slots:
     void onNewData();
+    void onClose();
 
 protected:
 
