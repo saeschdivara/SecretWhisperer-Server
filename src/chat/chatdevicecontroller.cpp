@@ -106,7 +106,7 @@ void ChatDeviceController::onNewData()
 
 void ChatDeviceController::onClose()
 {
-    qDebug() << "Closing on user: " << myUsername;
+    qDebug() << QStringLiteral("User has disconnected");
     chatController->closeUser(myUsername);
 }
 
