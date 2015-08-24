@@ -1,6 +1,7 @@
 #include "chatcontroller.h"
 
 #include <QtCore/QFile>
+#include <QtCore/QThread>
 
 #include <QtNetwork/QSslConfiguration>
 #include <QtNetwork/QSslCipher>
@@ -41,10 +42,13 @@ void ChatController::sendMessageToUserFromUser(const QByteArray &sender,
         receiverSocket->write(
                         QByteArrayLiteral("MESSAGE:") +
                         sender +
-                        QByteArrayLiteral("\r\n") +
-                        message +
-                        QByteArrayLiteral("\r\n\r\n")
+                        QByteArrayLiteral("\r\n")
                     );
+
+        receiverSocket->waitForBytesWritten();
+
+        QByteArray m = static_cast<QByteArray>(message);
+        sendSplittedData(receiverSocket, m, 1024);
     }
 }
 
@@ -125,6 +129,36 @@ void ChatController::ready()
 void ChatController::onError(QAbstractSocket::SocketError error)
 {
     qDebug() << error;
+}
+
+void ChatController::sendSplittedData(QTcpSocket *socket, QByteArray &data, quint64 max_piece_size)
+{
+    quint64 data_size = data.size();
+
+    qDebug() << "Started sending";
+
+    while ( data_size > 0 ) {
+
+        if ( data_size >= max_piece_size ) {
+            data_size -= max_piece_size;
+
+            QByteArray tempData = data.left(max_piece_size);
+            socket->write(tempData);
+            socket->waitForBytesWritten();
+            data = data.remove(0, max_piece_size);
+        }
+        else {
+            data_size = 0;
+            socket->write(data + QByteArrayLiteral("\r\n\r\n"));
+            socket->waitForBytesWritten();
+            data.clear();
+        }
+
+        QThread::currentThread()->sleep(200);
+
+    }
+
+    qDebug() << "Finished sending";
 }
 
 void ChatController::incomingConnection(qintptr socketDescriptor)

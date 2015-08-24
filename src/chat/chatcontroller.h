@@ -35,6 +35,11 @@ public slots:
     void onError(QAbstractSocket::SocketError error);
 
 protected:
+
+    // Helper
+    void sendSplittedData(QTcpSocket * socket, QByteArray & data, quint64 max_piece_size);
+
+    // Override
     void incomingConnection(qintptr socketDescriptor);
 
 private:

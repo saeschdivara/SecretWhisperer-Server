@@ -1,6 +1,11 @@
 #include "chatdevicecontroller.h"
 #include "chat/chatcontroller.h"
 
+#include <QtCore/QCoreApplication>
+#include <QtCore/QThread>
+
+const quint64 MAX_READ_RATE = 1024;
+
 ChatDeviceController::ChatDeviceController(QTcpSocket *socket, ChatController *controller, QByteArray username, QObject *parent) :
     QObject(parent),
     socket(socket),
@@ -19,7 +24,17 @@ void ChatDeviceController::listen()
 void ChatDeviceController::onNewData()
 {
     const QByteArray seperator("\r\n");
-    QByteArray data = socket->readAll();
+    QByteArray data, tempData;
+
+    disconnect( socket, &QTcpSocket::readyRead, this, &ChatDeviceController::onNewData );
+
+    while ( !socket->atEnd() || !data.contains("\r\n\r\n") ) {
+        tempData = socket->read(MAX_READ_RATE);
+        data.append(tempData);
+        qApp->processEvents();
+    }
+
+    connect( socket, &QTcpSocket::readyRead, this, &ChatDeviceController::onNewData );
 
     qDebug() << "Received user data";
 
@@ -128,13 +143,13 @@ QByteArray ChatDeviceController::stripRequest(QByteArray data, QByteArray comman
     data = data.remove(0, command.length());
 
     int endIndex = data.indexOf(endLiteral);
+
     if ( endIndex == -1 ) {
         socket->write(QByteArrayLiteral("ERROR:NO END\r\n\r\n"));
         socket->close();
         return QByteArrayLiteral("");
     }
 
-    // Get user name
     data = data.remove(endIndex, endLiteral.length());
 
     return data;
