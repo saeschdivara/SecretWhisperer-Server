@@ -6,6 +6,8 @@
 
 #include <QtNetwork/QTcpSocket>
 
+#include "chat/connector.h"
+
 class ChatController;
 
 class ChatDeviceController : public QObject
@@ -23,21 +25,30 @@ public:
         return socket;
     }
 
+    Connector * getConnector() {
+        return connector;
+    }
+
 signals:
 
 public slots:
-    void onNewData();
+    void onNewData(QByteArray &data);
     void onClose();
 
 protected:
 
     // Actions
     void onConnect(const QByteArray &username, const QByteArray &publicKey);
+    void onSend(const QByteArray &data);
+    void onEncrypt(const QByteArray &data);
 
     // Helper
     QByteArray stripRequest(QByteArray data, QByteArray command);
 
 private:
+
+    Connector * connector;
+
     QTcpSocket * socket;
     ChatController * chatController;
     QByteArray myUsername;

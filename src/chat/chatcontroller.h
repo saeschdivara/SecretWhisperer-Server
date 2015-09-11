@@ -4,6 +4,11 @@
 #include <QtCore/qglobal.h>
 #include <QtCore/QHash>
 #include <QtCore/QQueue>
+
+#include <QtNetwork/QSslConfiguration>
+#include <QtNetwork/QSslCipher>
+#include <QtNetwork/QSslKey>
+#include <QtNetwork/QSslSocket>
 #include <QtNetwork/QTcpServer>
 
 #include "chat/chatdevicecontroller.h"
@@ -33,11 +38,12 @@ signals:
 public slots:
     void ready();
     void onError(QAbstractSocket::SocketError error);
+    void onSslErrors(QList<QSslError> errors);
 
 protected:
 
-    // Helper
-    void sendSplittedData(QTcpSocket * socket, QByteArray & data, quint64 max_piece_size);
+    // Others
+    void init();
 
     // Override
     void incomingConnection(qintptr socketDescriptor);
@@ -45,6 +51,9 @@ protected:
 private:
     QQueue<QTcpSocket *> pendingSockets;
     QHash<QByteArray, ChatDeviceController *> deviceList;
+    QSslCertificate certificate;
+    QList<QSslCipher> ciphers;
+    QSslKey privateKey;
 };
 
 #endif // CHATCONTROLLER_H

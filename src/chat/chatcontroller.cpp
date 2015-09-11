@@ -3,23 +3,19 @@
 #include <QtCore/QFile>
 #include <QtCore/QThread>
 
-#include <QtNetwork/QSslConfiguration>
-#include <QtNetwork/QSslCipher>
-#include <QtNetwork/QSslKey>
-#include <QtNetwork/QSslSocket>
 
 ChatController::ChatController(QObject *parent) : QTcpServer(parent)
 {
-
+    init();
 }
 
 void ChatController::connectingUsers(const QByteArray &sender, const QByteArray &receiver, const QByteArray &publicKey)
 {
     // Check if both user are already registered
     if ( deviceList.contains(sender) && deviceList.contains(receiver) ) {
-        QTcpSocket * receiverSocket = deviceList.value(receiver)->getSocket();
+        Connector * connector = deviceList.value(receiver)->getConnector();
 
-        receiverSocket->write(
+        connector->send(
                         QByteArrayLiteral("STARTUP:") +
                         sender +
                         QByteArrayLiteral("\r\n") +
@@ -38,17 +34,14 @@ void ChatController::sendMessageToUserFromUser(const QByteArray &sender,
 
         qDebug() << "send message to user";
 
-        QTcpSocket * receiverSocket = deviceList.value(receiver)->getSocket();
-        receiverSocket->write(
+        Connector * connector = deviceList.value(receiver)->getConnector();
+        connector->send(
                         QByteArrayLiteral("MESSAGE:") +
                         sender +
-                        QByteArrayLiteral("\r\n")
+                        QByteArrayLiteral("\r\n") +
+                        message +
+                        QByteArrayLiteral("\r\n\r\n")
                     );
-
-        receiverSocket->waitForBytesWritten();
-
-        QByteArray m = static_cast<QByteArray>(message);
-        sendSplittedData(receiverSocket, m, 1024);
     }
 }
 
@@ -61,8 +54,8 @@ void ChatController::sendEncryptionKey(const QByteArray &sender,
 
         qDebug() << "send encryption key to user";
 
-        QTcpSocket * receiverSocket = deviceList.value(receiver)->getSocket();
-        receiverSocket->write(
+        Connector * connector = deviceList.value(receiver)->getConnector();
+        connector->send(
                         QByteArrayLiteral("ENCRYPT:") +
                         sender +
                         QByteArrayLiteral("\r\n") +
@@ -128,37 +121,46 @@ void ChatController::ready()
 
 void ChatController::onError(QAbstractSocket::SocketError error)
 {
-    qDebug() << error;
+    qDebug() << "SOCKET ERROR: " << error;
 }
 
-void ChatController::sendSplittedData(QTcpSocket *socket, QByteArray &data, quint64 max_piece_size)
+void ChatController::onSslErrors(QList<QSslError> errors)
 {
-    quint64 data_size = data.size();
+    qDebug() << "SSL ERRORS: " << errors;
+}
 
-    qDebug() << "Started sending";
-
-    while ( data_size > 0 ) {
-
-        if ( data_size >= max_piece_size ) {
-            data_size -= max_piece_size;
-
-            QByteArray tempData = data.left(max_piece_size);
-            socket->write(tempData);
-            socket->waitForBytesWritten();
-            data = data.remove(0, max_piece_size);
-        }
-        else {
-            data_size = 0;
-            socket->write(data + QByteArrayLiteral("\r\n\r\n"));
-            socket->waitForBytesWritten();
-            data.clear();
-        }
-
-        QThread::currentThread()->sleep(200);
-
+void ChatController::init()
+{
+    // Save certificate
+    QFile certificateFile("certificates/cert.pem");
+    if ( !certificateFile.open(QIODevice::ReadOnly) ) {
+        qWarning() << "CERTIFICATE FILE ERROR: Could not open (" << certificateFile.errorString() << ")";
     }
 
-    qDebug() << "Finished sending";
+    QByteArray data = certificateFile.readAll();
+    certificateFile.close();
+
+    certificate = QSslCertificate(data);
+
+    // Allowed ciphers
+    ciphers << QSslCipher("ECDHE-RSA-AES256-GCM-SHA384");
+
+    // Private key
+
+    QFile privateKeyFile("certificates/key.pem");
+    if ( !privateKeyFile.open(QIODevice::ReadOnly) ) {
+        qWarning() << "PRIVATE KEY FILE ERROR: Could not open (" << privateKeyFile.errorString() << ")";
+    }
+
+    data = privateKeyFile.readAll();
+
+    certificateFile.close();
+
+    privateKey = QSslKey(data,
+                         QSsl::Rsa,
+                         QSsl::Pem,
+                         QSsl::PrivateKey,
+                         QByteArrayLiteral("1234"));
 }
 
 void ChatController::incomingConnection(qintptr socketDescriptor)
@@ -173,27 +175,12 @@ void ChatController::incomingConnection(qintptr socketDescriptor)
         connect(serverSocket, SIGNAL(error(QAbstractSocket::SocketError)),
                 this, SLOT(onError(QAbstractSocket::SocketError)));
 
+        connect(serverSocket, SIGNAL(sslErrors(QList<QSslError>)),
+                this, SLOT(onSslErrors(QList<QSslError>)));
+
         qDebug() << "Connected to encrypted signal";
 
-        // Ciphers allowed
-        QList<QSslCipher> ciphers;
-
-        ciphers << QSslCipher("ECDHE-RSA-AES256-GCM-SHA384");
-
-        serverSocket->setPrivateKey("certificates/key.pem",
-                                    QSsl::Rsa,
-                                    QSsl::Pem,
-                                    QByteArrayLiteral("1234"));
-
-        QFile certificateFile("certificates/cert.pem");
-        certificateFile.open(QIODevice::ReadOnly);
-
-        QByteArray data = certificateFile.readAll();
-
-        certificateFile.close();
-
-        QSslCertificate certificate(data);
-
+        serverSocket->setPrivateKey(privateKey);
         serverSocket->setLocalCertificate(certificate);
 
         // Update config

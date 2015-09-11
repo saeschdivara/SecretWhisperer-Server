@@ -14,6 +14,9 @@ int main(int argc, char *argv[])
     if ( !server.isListening() ) {
         qWarning() << "Server is not listening";
     }
+    else {
+        qDebug() << "Your server is listening";
+    }
 
     return a.exec();
 }
