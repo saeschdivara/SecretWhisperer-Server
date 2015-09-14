@@ -143,7 +143,7 @@ void ChatController::init()
     certificate = QSslCertificate(data);
 
     // Allowed ciphers
-    ciphers << QSslCipher("ECDHE-RSA-AES256-GCM-SHA384");
+    ciphers << QSslCipher(QStringLiteral("ECDHE-RSA-AES256-GCM-SHA384"));
 
     // Private key
 
