@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     qDebug() << "Starting application";
 
     ChatController server;
-    server.listen(QHostAddress::LocalHost, 8888);
+    server.listen(QHostAddress::AnyIPv4, 8888);
 
     if ( !server.isListening() ) {
         qWarning() << "Server is not listening";
