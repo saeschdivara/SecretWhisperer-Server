@@ -79,9 +79,12 @@ void ChatController::ready()
     qDebug() << "On connection ready";
     QTcpSocket * socket = pendingSockets.dequeue();
 
+    QSslSocket * sslSocket = qobject_cast<QSslSocket *>(socket);
+    qDebug() << sslSocket->sessionCipher();
+
     QByteArray data = socket->readAll();
 
-    qDebug() << "Disconnect: " << disconnect(socket, SIGNAL(readyRead()), this, SLOT(ready()));
+    disconnect(socket, SIGNAL(readyRead()), this, SLOT(ready()));
 
     if ( data.indexOf(userLiteral) != 0 ) {
         socket->write(QByteArrayLiteral("ERROR:NO USER\r\n\r\n"));
@@ -186,7 +189,7 @@ void ChatController::incomingConnection(qintptr socketDescriptor)
         // Update config
         QSslConfiguration config = serverSocket->sslConfiguration();
         config.setProtocol(QSsl::TlsV1_2);
-        config.setCiphers(ciphers);
+        //config.setCiphers(ciphers);
 
         serverSocket->setSslConfiguration(config);
 
