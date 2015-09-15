@@ -189,7 +189,7 @@ void ChatController::incomingConnection(qintptr socketDescriptor)
         // Update config
         QSslConfiguration config = serverSocket->sslConfiguration();
         config.setProtocol(QSsl::TlsV1_2);
-        //config.setCiphers(ciphers);
+        config.setCiphers(ciphers);
 
         serverSocket->setSslConfiguration(config);
 
