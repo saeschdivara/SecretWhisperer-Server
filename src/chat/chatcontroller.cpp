@@ -15,13 +15,7 @@ void ChatController::connectingUsers(const QByteArray &sender, const QByteArray 
     if ( deviceList.contains(sender) && deviceList.contains(receiver) ) {
         Connector * connector = deviceList.value(receiver)->getConnector();
 
-        connector->send(
-                        QByteArrayLiteral("STARTUP:") +
-                        sender +
-                        QByteArrayLiteral("\r\n") +
-                        publicKey +
-                        QByteArrayLiteral("\r\n\r\n")
-                    );
+        connector->onMessage(QByteArrayLiteral("STARTUP:"), sender, publicKey);
     }
 }
 
@@ -35,12 +29,10 @@ void ChatController::sendMessageToUserFromUser(const QByteArray &sender,
         qDebug() << "send message to user";
 
         Connector * connector = deviceList.value(receiver)->getConnector();
-        connector->send(
-                        QByteArrayLiteral("MESSAGE:") +
-                        sender +
-                        QByteArrayLiteral("\r\n") +
-                        message +
-                        QByteArrayLiteral("\r\n\r\n")
+        connector->onMessage(
+                        QByteArrayLiteral("MESSAGE:"),
+                        sender,
+                        message
                     );
     }
 }
@@ -55,12 +47,10 @@ void ChatController::sendEncryptionKey(const QByteArray &sender,
         qDebug() << "send encryption key to user";
 
         Connector * connector = deviceList.value(receiver)->getConnector();
-        connector->send(
-                        QByteArrayLiteral("ENCRYPT:") +
-                        sender +
-                        QByteArrayLiteral("\r\n") +
-                        encryptedKey +
-                        QByteArrayLiteral("\r\n\r\n")
+        connector->onMessage(
+                        QByteArrayLiteral("ENCRYPT:"),
+                        sender,
+                        encryptedKey
                     );
     }
 }
@@ -111,7 +101,7 @@ void ChatController::ready()
     }
 
     if ( !deviceList.contains(data) ) {
-        ChatDeviceController * deviceController = new ChatDeviceController(socket, this, data);
+        ChatDeviceController * deviceController = new ChatDeviceController(sslSocket, this, data);
         deviceController->listen();
         deviceList.insert(data, deviceController);
     }

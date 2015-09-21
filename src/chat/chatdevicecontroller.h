@@ -7,6 +7,7 @@
 #include <QtNetwork/QTcpSocket>
 
 #include "chat/connector.h"
+#include "chat/protocolcontroller.h"
 
 class ChatController;
 
@@ -14,8 +15,7 @@ class ChatDeviceController : public QObject
 {
     Q_OBJECT
 public:
-    explicit ChatDeviceController(
-            QTcpSocket * socket,
+    explicit ChatDeviceController(QSslSocket *socket,
             ChatController * controller,
             QByteArray username,
             QObject *parent = 0);
@@ -32,24 +32,21 @@ public:
 signals:
 
 public slots:
-    void onNewData(QByteArray &data);
     void onClose();
 
 protected:
 
     // Actions
     void onConnect(const QByteArray &username, const QByteArray &publicKey);
-    void onSend(const QByteArray &data);
-    void onEncrypt(const QByteArray &data);
-
-    // Helper
-    QByteArray stripRequest(QByteArray data, QByteArray command);
+    void onSend(const QByteArray &username, QByteArray &message);
+    void onEncrypt(const QByteArray &username, QByteArray &encryptedKey);
 
 private:
 
     Connector * connector;
+    ProtocolController * protocol;
 
-    QTcpSocket * socket;
+    QSslSocket * socket;
     ChatController * chatController;
     QByteArray myUsername;
 };
