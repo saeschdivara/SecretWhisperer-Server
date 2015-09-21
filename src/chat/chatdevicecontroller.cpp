@@ -22,7 +22,6 @@ void ChatDeviceController::listen()
     connect( protocol, &ProtocolController::signalEncrypt, this, &ChatDeviceController::onEncrypt );
     connect( protocol, &ProtocolController::signalSend, this, &ChatDeviceController::onSend );
 
-    //connect( connector, &Connector::newData, this, &ChatDeviceController::onNewData );
     connect( connector, &Connector::closed, this, &ChatDeviceController::onClose );
 
     connector->listen();
