@@ -43,7 +43,7 @@ QByteArray Encryptor::encryptAsymmetricly(QByteArray &publicKey, QByteArray &dat
         msgtoencrypt[i] = data[i];
     }
 
-    Botan::PK_Encryptor_EME encryptor(publicRsaKey, "EME1(SHA-256)");
+    Botan::PK_Encryptor_EME encryptor(*publicRsaKey, "EME1(SHA-256)");
     Botan::AutoSeeded_RNG rng;
     std::vector<Botan::byte> ciphertext = encryptor.encrypt(msgtoencrypt, DATA_SIZE, rng);
 

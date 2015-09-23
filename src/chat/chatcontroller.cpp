@@ -1,5 +1,6 @@
 #include "chatcontroller.h"
 
+#include <QtCore/QDebug>
 #include <QtCore/QFile>
 #include <QtCore/QThread>
 
@@ -150,15 +151,11 @@ void ChatController::ready()
 
                 QByteArray randomString = encryptor->createRandomString();
                 QByteArray randomStringHash = QCryptographicHash::hash(randomString, QCryptographicHash::Sha3_512);
-                QByteArray encryptedHash = encryptor->encryptAsymmetricly(publicKey, randomStringHash);
-
-                qDebug() << "Random string: " << randomString;
-                qDebug() << "String hash: " << randomStringHash;
-                qDebug() << "Encrypted hash: " << encryptedHash;
+                QByteArray encryptedString = encryptor->encryptAsymmetricly(publicKey, randomString);
 
                 notAuthenticatedDevices.insert(sslSocket, QPair<QByteArray, QByteArray>(username, randomStringHash));
 
-                socket->write(QByteArrayLiteral("IDENTITY-CHECK:") + encryptedHash + endLiteral);
+                socket->write(QByteArrayLiteral("IDENTITY-CHECK:") + encryptedString + endLiteral);
             }
         }
 
@@ -182,6 +179,48 @@ void ChatController::onSslErrors(QList<QSslError> errors)
 
 void ChatController::onAuthentication()
 {
+    QSslSocket * socket = qobject_cast<QSslSocket *>(sender());
+    QByteArray data = socket->readAll();
+
+    disconnect( socket, &QSslSocket::readyRead, this, &ChatController::onAuthentication );
+
+    QByteArray authenticationLiteral("AUTHENTICATE:");
+    QByteArray endLiteral("\r\n\r\n");
+
+    if ( data.indexOf(authenticationLiteral) != 0 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO AUTHENTICATION\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
+    data = data.remove(0, authenticationLiteral.length());
+
+    int endIndex = data.indexOf(endLiteral);
+    if ( endIndex == -1 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO END\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
+    // Get public key
+    QByteArray authenticationHash = data.remove(endIndex, endLiteral.length());
+
+    QPair<QByteArray, QByteArray> userPair = notAuthenticatedDevices.take(socket);
+    QByteArray username = userPair.first;
+    QByteArray randomStringHash = userPair.second;
+
+    if ( randomStringHash != authenticationHash ) {
+        socket->write(QByteArrayLiteral("ERROR:AUTHENTICATION FAILED\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
+    qDebug() << "Authentication succeded";
+
+    // Now we listen to the user
+    ChatDeviceController * deviceController = new ChatDeviceController(socket, this, username);
+    deviceController->listen();
+    deviceList.insert(username, deviceController);
 }
 
 void ChatController::init()
