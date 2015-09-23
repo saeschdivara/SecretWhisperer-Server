@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>sql/migrations.sql</file>
+        <file>sql/migrations/0.sql</file>
+        <file>sql/users.sql</file>
+    </qresource>
+</RCC>

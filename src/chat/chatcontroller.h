@@ -12,6 +12,8 @@
 #include <QtNetwork/QTcpServer>
 
 #include "chat/chatdevicecontroller.h"
+#include "chat/encryptor.h"
+#include "chat/user/identitycontroller.h"
 
 class ChatController : public QTcpServer
 {
@@ -39,6 +41,7 @@ public slots:
     void ready();
     void onError(QAbstractSocket::SocketError error);
     void onSslErrors(QList<QSslError> errors);
+    void onAuthentication();
 
 protected:
 
@@ -51,9 +54,13 @@ protected:
 private:
     QQueue<QTcpSocket *> pendingSockets;
     QHash<QByteArray, ChatDeviceController *> deviceList;
+    QHash<QSslSocket *, QPair<QByteArray, QByteArray> > notAuthenticatedDevices;
     QSslCertificate certificate;
     QList<QSslCipher> ciphers;
     QSslKey privateKey;
+
+    Encryptor * encryptor;
+    IdentityController * identity;
 };
 
 #endif // CHATCONTROLLER_H

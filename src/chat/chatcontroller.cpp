@@ -4,9 +4,12 @@
 #include <QtCore/QThread>
 
 
-ChatController::ChatController(QObject *parent) : QTcpServer(parent)
+ChatController::ChatController(QObject *parent) : QTcpServer(parent),
+    identity(new IdentityController(this)),
+    encryptor(new Encryptor(this))
 {
     init();
+    identity->init();
 }
 
 void ChatController::connectingUsers(const QByteArray &sender, const QByteArray &receiver, const QByteArray &publicKey)
@@ -64,6 +67,7 @@ void ChatController::closeUser(const QByteArray &username)
 void ChatController::ready()
 {
     const QByteArray userLiteral("USER:");
+    const QByteArray seperatorLiteral("\r\n");
     const QByteArray endLiteral("\r\n\r\n");
 
     qDebug() << "On connection ready";
@@ -84,6 +88,24 @@ void ChatController::ready()
 
     data = data.remove(0, userLiteral.length());
 
+    int nameSeperatorIndex = data.indexOf(seperatorLiteral);
+    if ( nameSeperatorIndex == -1 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO SEPERATOR\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
+    // Get user name
+    data = data.remove(nameSeperatorIndex, seperatorLiteral.length());
+    QByteArray username = data.left(nameSeperatorIndex);
+    data = data.remove(0, username.size());
+
+    if ( username.length() == 0 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO USER\r\n\r\n"));
+        socket->close();
+        return;
+    }
+
     int endIndex = data.indexOf(endLiteral);
     if ( endIndex == -1 ) {
         socket->write(QByteArrayLiteral("ERROR:NO END\r\n\r\n"));
@@ -91,19 +113,55 @@ void ChatController::ready()
         return;
     }
 
-    // Get user name
-    data = data.remove(endIndex, endLiteral.length());
+    // Get public key
+    QByteArray publicKey = data.remove(endIndex, endLiteral.length());
 
-    if ( data.length() == 0 ) {
-        socket->write(QByteArrayLiteral("ERROR:NO USER\r\n\r\n"));
+    if ( publicKey.length() == 0 ) {
+        socket->write(QByteArrayLiteral("ERROR:NO PUBLIC KEY\r\n\r\n"));
         socket->close();
         return;
     }
 
-    if ( !deviceList.contains(data) ) {
-        ChatDeviceController * deviceController = new ChatDeviceController(sslSocket, this, data);
-        deviceController->listen();
-        deviceList.insert(data, deviceController);
+    if ( !deviceList.contains(username) ) {
+
+        // Check if the user not exists
+        if ( !identity->hasUsername(username) ) {
+            qDebug() << "This username (" << username << ") has not been used yet";
+
+            // Register the user
+            identity->createIdentity(username, publicKey);
+
+            // Now we listen to the user
+            ChatDeviceController * deviceController = new ChatDeviceController(sslSocket, this, data);
+            deviceController->listen();
+            deviceList.insert(data, deviceController);
+        }
+        // Username does exists
+        else {
+            // Check if the public key does not match the registered public key
+            if ( !identity->hasIdentity(username, publicKey) ) {
+                socket->write(QByteArrayLiteral("ERROR:WRONG IDENTITY\r\n\r\n"));
+                socket->close();
+                return;
+            }
+            // Username and public key match
+            else {
+                connect( sslSocket, &QSslSocket::readyRead, this, &ChatController::onAuthentication );
+
+                QByteArray randomString = encryptor->createRandomString();
+                QByteArray randomStringHash = QCryptographicHash::hash(randomString, QCryptographicHash::Sha3_512);
+                QByteArray encryptedHash = encryptor->encryptAsymmetricly(publicKey, randomStringHash);
+
+                qDebug() << "Random string: " << randomString;
+                qDebug() << "String hash: " << randomStringHash;
+                qDebug() << "Encrypted hash: " << encryptedHash;
+
+                notAuthenticatedDevices.insert(sslSocket, QPair<QByteArray, QByteArray>(username, randomStringHash));
+
+                socket->write(QByteArrayLiteral("IDENTITY-CHECK:") + encryptedHash + endLiteral);
+            }
+        }
+
     }
     else {
         socket->write(QByteArrayLiteral("ERROR:WRONG USER\r\n\r\n"));
@@ -120,6 +178,10 @@ void ChatController::onError(QAbstractSocket::SocketError error)
 void ChatController::onSslErrors(QList<QSslError> errors)
 {
     qDebug() << "SSL ERRORS: " << errors;
+}
+
+void ChatController::onAuthentication()
+{
 }
 
 void ChatController::init()
