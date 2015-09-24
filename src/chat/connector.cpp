@@ -1,5 +1,7 @@
 #include "connector.h"
 
+const QByteArray endLiteral("\r\n\r\n");
+
 Connector::Connector(QSslSocket *socket, QObject *parent) : QObject(parent),
     socket(socket)
 {
@@ -18,8 +20,6 @@ void Connector::send(const QByteArray &data)
 
 void Connector::onMessage(const QByteArray &command, const QByteArray &data)
 {
-    const QByteArray endLiteral("\r\n\r\n");
-
     send(
         command +
         data +
@@ -30,7 +30,6 @@ void Connector::onMessage(const QByteArray &command, const QByteArray &data)
 void Connector::onMessage(const QByteArray &command, const QByteArray &username, const QByteArray &data)
 {
     const QByteArray seperator("\r\n");
-    const QByteArray endLiteral("\r\n\r\n");
 
     send(
         command +
@@ -43,8 +42,19 @@ void Connector::onMessage(const QByteArray &command, const QByteArray &username,
 
 void Connector::onData()
 {
-    QByteArray data = socket->readAll();
-    emit newData(data);
+    QByteArray readData = socket->read(1024 * 4);
+    savedData += readData;
+    qDebug() << "New data gotten";
+    qDebug() << "Available bytes: " << socket->bytesAvailable();
+    qDebug() << "Bytes sizes: " << readData.size();
+
+    if ( savedData.contains(endLiteral) ) {
+        qDebug() << "End found";
+        QByteArray data(savedData);
+        data += "";
+        savedData.clear();
+        emit newData(data);
+    }
 }
 
 void Connector::onClose()

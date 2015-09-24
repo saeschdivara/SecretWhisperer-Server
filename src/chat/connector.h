@@ -28,6 +28,9 @@ public slots:
 
 private:
     QSslSocket * socket;
+
+    // Data
+    QByteArray savedData;
 };
 
 #endif // CONNECTOR_H
